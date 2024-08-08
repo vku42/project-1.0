@@ -1,42 +1,50 @@
-name: CI
+name: Build APK
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      # used to cache dependencies with a timeout
-      - name: Get Date
-        id: get-date
-        run: |
-          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
-        shell: bash
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
 
-      - name: Cache Buildozer global directory
-        uses: actions/cache@v2
-        with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }} # Replace with your path
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-pip python3-setuptools python3-venv cython git zip unzip openjdk-11-jdk
+        pip install buildozer
 
-      - uses: actions/cache@v2
-        with:
-          path: .buildozer
-          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
+    - name: Install Buildozer dependencies
+      run: |
+        sudo apt-get install -y libltdl-dev
+        sudo apt-get install -y libffi-dev
+        sudo apt-get install -y libssl-dev
+        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+        sudo apt-get install -y pkg-config
+        sudo apt-get install -y zlib1g-dev
+        sudo apt-get install -y libncurses5-dev libncursesw5-dev
+        sudo apt-get install -y libtinfo5
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+    - name: Initialize Buildozer
+      run: |
+        buildozer init
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: package
-          path: ${{ steps.buildozer.outputs.filename }}
+    - name: Build APK
+      run: |
+        buildozer -v android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: my-kivy-app
+        path: ./bin/*.apk
